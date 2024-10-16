@@ -1,0 +1,667 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+
+```{r}
+setwd("C:/Users/dilip/OneDrive/Documents/Desktop/Predictive Analytics")
+ getwd()
+```
+
+Part B – Data Exploration and Cleaning
+Q1 C
+```{r}
+library(dplyr)
+library(corrplot)
+library(scales)
+
+housing_data <- read.csv("HousingValuation.csv")
+
+str(housing_data)
+
+continuous_vars <- c("LotArea", "TotalBSF", "LowQualFinSF", "LivingArea", "TotalRmsAbvGrd", "Fireplaces", "GarageCars", "OpenPorchSF", "PoolArea", "SalePrice", "MoSold", "YrSold")
+
+categorical_vars <- c("LotShape", "LandContour", "Utilities", "LotConfig", "Slope", "DwellClass", "CentralAir", "GarageType")
+
+housing_data[categorical_vars] <- lapply(housing_data[categorical_vars], function(x) as.numeric(as.factor(x)))
+
+str(housing_data)
+
+head(housing_data)
+
+summary(housing_data)
+
+names(housing_data)
+
+numerical_vars <- housing_data %>%
+  select_if(is.numeric)
+
+cor_matrix <- cor(numerical_vars, use = "complete.obs")
+corrplot(cor_matrix, method = "circle")
+
+library(ggplot2)
+ggplot(housing_data, aes(x = SalePrice)) +
+  geom_histogram(binwidth = 10000, fill = "blue", color = "black") +
+  theme_minimal() +
+  labs(title = "Distribution of SalePrice", x = "SalePrice", y = "Count") + 
+  scale_x_continuous(labels = scales::comma)
+
+```
+
+Q2 A
+```{r}
+library(dplyr)
+library(psych)
+
+housing_data <- read.csv("HousingValuation.csv")
+
+str(housing_data)
+
+continuous_vars <- dplyr::select(housing_data, LotArea, TotalBSF, LowQualFinSF, LivingArea, 
+                                  TotalRmsAbvGrd, Fireplaces, GarageCars, OpenPorchSF, 
+                                  PoolArea, SalePrice, MoSold, YrSold)
+
+summary_stats <- continuous_vars %>%
+  summarise(
+    count = n(),  
+    mean = sapply(., mean, na.rm = TRUE), 
+    median = sapply(., median, na.rm = TRUE), 
+    max = sapply(., max, na.rm = TRUE), 
+    sd = sapply(., sd, na.rm = TRUE)
+  )
+
+print("Summary statistics for continuous variables:")
+print(summary_stats)
+
+
+categorical_vars <- dplyr::select(housing_data, LotShape, LandContour, Utilities, LotConfig, 
+                                   Slope, DwellClass, CentralAir, GarageType)
+
+print("Counts for categorical variables:")
+for (col in names(categorical_vars)) { 
+  print(paste("Counts for", col, ":"))
+  print(table(categorical_vars[[col]], useNA = "ifany"))  
+}
+
+describe_continuous <- describe(continuous_vars)
+
+print("Detailed summary statistics using psych package:")
+print(describe_continuous)
+
+```
+
+
+Q3
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales) 
+library(psych)
+
+housing_data <- read.csv("HousingValuation.csv")
+
+str(housing_data)
+
+continuous_var_names <- c("LotArea", "TotalBSF", "LowQualFinSF", "LivingArea", 
+                          "TotalRmsAbvGrd", "Fireplaces", "GarageCars", 
+                          "OpenPorchSF", "PoolArea", "SalePrice", "MoSold", "YrSold")
+
+continuous_vars <- housing_data %>% 
+  dplyr::select(all_of(continuous_var_names))
+
+print("Plotting histograms for continuous variables with customized x-axis range:")
+
+x_limits <- list(
+  LotArea = c(0, 50000),
+  TotalBSF = c(0, 4000),
+  LowQualFinSF = c(0, 600),
+  LivingArea = c(0, 4000),
+  TotalRmsAbvGrd = c(0, 15),
+  Fireplaces = c(0, 5),
+  GarageCars = c(0, 5),
+  OpenPorchSF = c(0, 400),
+  PoolArea = c(0, 800),
+  SalePrice = c(0, 800000),
+  MoSold = c(1, 12),
+  YrSold = c(2006, 2010)
+)
+
+for (var in names(continuous_vars)) {
+  plot <- ggplot(housing_data, aes_string(x = var)) +
+    geom_histogram(fill = "blue", color = "black", bins = 30) +  
+    theme_minimal() +
+    labs(title = paste("Histogram of", var), x = var, y = "Count") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  
+    scale_x_continuous(labels = scales::comma, limits = x_limits[[var]])  
+  
+  print(plot)  
+}
+
+summary_stats <- continuous_vars %>%
+  summarise_all(list(
+    count = ~sum(!is.na(.)),  
+    mean = mean, 
+    median = median, 
+    max = max, 
+    min = min,
+    sd = sd
+  ), na.rm = TRUE)
+
+print("Summary statistics for continuous variables:")
+print(summary_stats)
+
+describe_continuous <- describe(continuous_vars)
+
+print("Detailed summary statistics using psych package:")
+print(describe_continuous)
+
+```
+
+Q4 A
+```{r}
+library(dplyr)
+
+housing_data <- read.csv("HousingValuation.csv")
+
+str(housing_data)
+
+missing_values_summary <- sapply(housing_data, function(x) sum(is.na(x)))
+
+print("Summary of missing values for each variable:")
+print(missing_values_summary)
+
+columns_with_missing_values <- names(missing_values_summary[missing_values_summary > 0])
+
+if (length(columns_with_missing_values) > 0) {
+  print("Columns with missing values:")
+  print(missing_values_summary[missing_values_summary > 0])
+} else {
+  print("No columns have missing values.")
+}
+
+```
+
+Q4 C
+```{r}
+library(dplyr)
+library(ggplot2)
+library(psych) 
+
+housing_data <- read.csv("HousingValuation.csv")
+
+missing_values_summary <- sapply(housing_data, function(x) sum(is.na(x)))
+columns_with_missing_values <- names(missing_values_summary[missing_values_summary > 0])
+
+housing_data_mean_mode <- housing_data
+for (col in columns_with_missing_values) {
+  if (is.numeric(housing_data_mean_mode[[col]])) {
+    housing_data_mean_mode[[col]][is.na(housing_data_mean_mode[[col]])] <- mean(housing_data_mean_mode[[col]], na.rm = TRUE)
+  } else {
+    mode_value <- names(sort(table(housing_data_mean_mode[[col]]), decreasing = TRUE))[1]
+    housing_data_mean_mode[[col]][is.na(housing_data_mean_mode[[col]])] <- mode_value
+  }
+}
+
+housing_data_delete <- housing_data %>% na.omit()
+
+housing_data_replace <- housing_data
+for (col in columns_with_missing_values) {
+  if (is.numeric(housing_data_replace[[col]])) {
+    housing_data_replace[[col]][is.na(housing_data_replace[[col]])] <- 0
+  } else {
+    housing_data_replace[[col]][is.na(housing_data_replace[[col]])] <- "Unknown"
+  }
+}
+
+calculate_summary_stats_numeric <- function(data, method_name) {
+  numeric_vars <- data %>% select_if(is.numeric)
+  summary_stats <- numeric_vars %>%
+    summarise_all(list(
+      count = ~sum(!is.na(.)),  
+      mean = ~mean(., na.rm = TRUE), 
+      median = ~median(., na.rm = TRUE), 
+      max = ~max(., na.rm = TRUE), 
+      min = ~min(., na.rm = TRUE),
+      sd = ~sd(., na.rm = TRUE)
+    ))
+  print(paste("Summary statistics for numeric variables after", method_name, ":"))
+  print(summary_stats)
+  return(summary_stats)
+}
+
+calculate_mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+calculate_summary_stats_categorical <- function(data, method_name) {
+  categorical_vars <- data %>% select_if(is.factor)
+  summary_stats <- sapply(categorical_vars, function(x) {
+    mode <- calculate_mode(x)
+    list(count = sum(!is.na(x)), mode = mode)
+  })
+  print(paste("Summary statistics for categorical variables after", method_name, ":"))
+  print(summary_stats)
+  return(summary_stats)
+}
+
+summary_mean_mode_numeric <- calculate_summary_stats_numeric(housing_data_mean_mode, "Mean/Mode Imputation")
+summary_mean_mode_categorical <- calculate_summary_stats_categorical(housing_data_mean_mode, "Mean/Mode Imputation")
+
+summary_delete_numeric <- calculate_summary_stats_numeric(housing_data_delete, "Deletion of Records")
+summary_delete_categorical <- calculate_summary_stats_categorical(housing_data_delete, "Deletion of Records")
+
+summary_replace_numeric <- calculate_summary_stats_numeric(housing_data_replace, "Replacement with 0/Unknown")
+summary_replace_categorical <- calculate_summary_stats_categorical(housing_data_replace, "Replacement with 0/Unknown")
+
+plot_histograms_missing <- function(data, method_name, columns) {
+  print(paste("Plotting histograms for numeric variables after", method_name, ":"))
+  for (var in columns) {
+    if (is.numeric(data[[var]])) {
+      plot <- ggplot(data, aes_string(x = var)) +
+        geom_histogram(fill = "blue", color = "black", bins = 30) + 
+        theme_minimal() +
+        labs(title = paste("Histogram of", var, "after", method_name), x = var, y = "Count")
+      print(plot)
+    }
+  }
+}
+plot_histograms_missing(housing_data_mean_mode, "Mean/Mode Imputation", columns_with_missing_values)
+plot_histograms_missing(housing_data_delete, "Deletion of Records", columns_with_missing_values)
+plot_histograms_missing(housing_data_replace, "Replacement with 0/Unknown", columns_with_missing_values)
+```
+
+Q5 A
+```{r}
+library(dplyr)
+library(ggplot2)
+library(corrplot)  
+library(psych)     
+housing_data <- read.csv("HousingValuation.csv")
+
+str(housing_data)
+
+numerical_data <- housing_data %>%
+  select_if(is.numeric)
+
+correlation_matrix <- cor(numerical_data, use = "complete.obs")
+
+print("Correlation matrix for numerical variables:")
+print(correlation_matrix)
+
+corrplot(correlation_matrix, method = "color", type = "upper", 
+         tl.col = "black", tl.srt = 45, order = "hclust", 
+         addCoef.col = "black", number.cex = 0.7, 
+         main = "Correlation Matrix of Numerical Variables")
+
+strong_correlations <- which(abs(correlation_matrix) > 0.5 & abs(correlation_matrix) < 1, arr.ind = TRUE)
+if(length(strong_correlations) > 0) {
+  print("Strong correlations (absolute value > 0.5):")
+  for (index in 1:nrow(strong_correlations)) {
+    var1 <- rownames(correlation_matrix)[strong_correlations[index, 1]]
+    var2 <- colnames(correlation_matrix)[strong_correlations[index, 2]]
+    cor_value <- correlation_matrix[var1, var2]
+    print(paste(var1, "and", var2, "have a correlation of", round(cor_value, 2)))
+  }
+} else {
+  print("No strong correlations found (absolute value > 0.5).")
+}
+
+```
+
+Q5 B
+```{r}
+library(dplyr)
+library(corrplot)
+library(caret)
+library(GGally)
+library(FactoMineR)  
+library(factoextra)  
+library(ggplot2)
+
+housing_data <- read.csv("HousingValuation.csv")
+
+str(housing_data)
+
+numerical_var_names <- c("LivingArea", "TotalBSF", "TotalRmsAbvGrd", "GarageCars", 
+                         "OverallQuality", "OverallCondition", "YearBuilt", "YrSold")
+
+numerical_data <- housing_data %>%
+  dplyr::select(all_of(numerical_var_names))
+
+str(numerical_data)
+
+corr_matrix <- cor(numerical_data, use = "complete.obs")
+corrplot(corr_matrix, method = "color", type = "upper", tl.col = "black", tl.srt = 45)
+
+highly_correlated <- findCorrelation(corr_matrix, cutoff = 0.7)
+print("Highly correlated variables:")
+print(names(numerical_data)[highly_correlated])
+
+selected_data <- numerical_data %>%
+  dplyr::select(-c(TotalBSF, TotalRmsAbvGrd))  
+standardized_data <- scale(selected_data)
+
+pca_result <- PCA(standardized_data, graph = FALSE)
+
+print("PCA Results Summary:")
+print(summary(pca_result))
+
+fviz_eig(pca_result, addlabels = TRUE, ylim = c(0, 50), main = "Scree Plot")
+
+fviz_pca_ind(pca_result, col.ind = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE, title = "PCA - Individuals")
+
+fviz_pca_var(pca_result, col.var = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE, title = "PCA - Variables")
+explained_variance <- cumsum(pca_result$eig[, 2])  
+num_components <- which(explained_variance >= 80)[1]
+print(paste("Number of components explaining at least 80% of variance:", num_components))
+
+pca_data <- data.frame(pca_result$ind$coord[, 1:num_components])
+print("Data with selected principal components:")
+print(head(pca_data))
+
+```
+
+Q5 C
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+housing_data <- read.csv("HousingValuation.csv")
+
+variable_list <- c("SalePrice", "LivingArea", "TotalBSF", "TotalRmsAbvGrd", 
+                   "GarageCars", "OverallQuality", "YearBuilt", "YrSold")
+
+selected_variables <- housing_data %>%
+  dplyr::select(all_of(variable_list))
+
+selected_variables <- selected_variables %>%
+  mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+
+ggplot(selected_variables, aes(x = LivingArea, y = SalePrice)) +
+  geom_point(color = 'blue', alpha = 0.5) +
+  geom_smooth(method = 'lm', color = 'red') +
+  labs(title = "LivingArea vs. SalePrice", x = "Living Area", y = "Sale Price") +
+  scale_y_continuous(labels = comma, limits = c(0, 500000))
+
+ggplot(selected_variables, aes(x = TotalBSF, y = SalePrice)) +
+  geom_point(color = 'green', alpha = 0.5) +
+  geom_smooth(method = 'lm', color = 'red') +
+  labs(title = "TotalBSF vs. SalePrice", x = "Total Basement SF", y = "Sale Price") +
+  scale_y_continuous(labels = comma, limits = c(0, 500000))
+
+ggplot(selected_variables, aes(x = TotalRmsAbvGrd, y = SalePrice)) +
+  geom_point(color = 'purple', alpha = 0.5) +
+  geom_smooth(method = 'lm', color = 'red') +
+  labs(title = "TotalRmsAbvGrd vs. SalePrice", x = "Total Rooms Above Ground", y = "Sale Price") +
+  scale_y_continuous(labels = comma, limits = c(0, 500000))
+
+ggplot(selected_variables, aes(x = GarageCars, y = SalePrice)) +
+  geom_point(color = 'orange', alpha = 0.5) +
+  geom_smooth(method = 'lm', color = 'red') +
+  labs(title = "GarageCars vs. SalePrice", x = "Number of Garage Cars", y = "Sale Price") +
+  scale_y_continuous(labels = comma, limits = c(0, 500000))
+
+ggplot(selected_variables, aes(x = OverallQuality, y = SalePrice)) +
+  geom_point(color = 'pink', alpha = 0.5) +
+  geom_smooth(method = 'lm', color = 'red') +
+  labs(title = "OverallQuality vs. SalePrice", x = "Overall Quality", y = "Sale Price") +
+  scale_y_continuous(labels = comma, limits = c(0, 500000))
+
+ggplot(selected_variables, aes(x = YearBuilt, y = SalePrice)) +
+  geom_point(color = 'brown', alpha = 0.5) +
+  geom_smooth(method = 'lm', color = 'red') +
+  labs(title = "YearBuilt vs. SalePrice", x = "Year Built", y = "Sale Price") +
+  scale_y_continuous(labels = comma, limits = c(0, 500000))
+
+ggplot(selected_variables, aes(x = YrSold, y = SalePrice)) +
+  geom_point(color = 'black', alpha = 0.5) +
+  geom_smooth(method = 'lm', color = 'red') +
+  labs(title = "YrSold vs. SalePrice", x = "Year Sold", y = "Sale Price") +
+  scale_y_continuous(labels = comma, limits = c(0, 500000))
+
+```
+
+Part C – Building predictive models
+1. Regression Modelling
+Q1 A
+```{r}
+library(dplyr)
+library(ggplot2)
+library(caret)
+library(scales)
+
+housing_data <- read.csv("HousingValuation.csv")
+
+str(housing_data)
+
+numeric_columns <- c("LivingArea", "TotalBSF", "TotalRmsAbvGrd", "GarageCars", 
+                     "OverallQuality", "YearBuilt", "YrSold", "SalePrice")
+
+housing_data[numeric_columns] <- lapply(housing_data[numeric_columns], as.numeric)
+
+housing_data[numeric_columns] <- lapply(housing_data[numeric_columns], function(x) {
+  if (is.numeric(x)) {
+    ifelse(is.na(x), mean(x, na.rm = TRUE), x)
+  } else {
+    x  
+  }
+})
+
+selected_vars <- housing_data %>%
+  dplyr::select(all_of(numeric_columns))
+
+set.seed(123)  
+trainIndex <- createDataPartition(selected_vars$SalePrice, p = 0.7, list = FALSE)
+trainData <- selected_vars[trainIndex, ]
+testData <- selected_vars[-trainIndex, ]
+
+formula <- SalePrice ~ LivingArea + TotalBSF + TotalRmsAbvGrd + GarageCars + OverallQuality + YearBuilt + YrSold
+
+model <- lm(formula = formula, data = trainData)
+
+print(summary(model))
+
+testData$predicted_SalePrice <- predict(model, newdata = testData)
+
+r_squared <- summary(model)$r.squared
+print(paste("R-squared:", r_squared))
+
+rmse <- sqrt(mean((testData$SalePrice - testData$predicted_SalePrice)^2))
+print(paste("RMSE:", rmse))
+
+ggplot(testData, aes(x = SalePrice, y = predicted_SalePrice)) +
+  geom_point(color = 'blue', alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, color = 'red', linetype = 'dashed') +
+  labs(title = "Actual vs Predicted Sale Price", x = "Actual Sale Price", y = "Predicted Sale Price") +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  theme_minimal()
+
+```
+
+Q1 B
+```{r}
+calculate_metrics <- function(actual, predicted) {
+  SSE <- sum((predicted - actual)^2)
+  SST <- sum((actual - mean(actual))^2)
+  rsq <- 1 - SSE / SST
+  rmse <- sqrt(mean((predicted - actual)^2))
+  return(c(R_squared = rsq, RMSE = rmse))
+}
+
+test_data$pred1 <- predict(model1, newdata = test_data)
+test_data$pred2 <- predict(model2, newdata = test_data)
+test_data$pred3 <- predict(model3, newdata = test_data)
+
+metrics_model1 <- calculate_metrics(test_data$SalePrice, test_data$pred1)
+metrics_model2 <- calculate_metrics(test_data$SalePrice, test_data$pred2)
+metrics_model3 <- calculate_metrics(test_data$SalePrice, test_data$pred3)
+
+cat("Model 1 Metrics:\n")
+print(metrics_model1)
+cat("Model 2 Metrics (Stepwise Regression):\n")
+print(metrics_model2)
+cat("Model 3 Metrics (Manual Selection):\n")
+print(metrics_model3)
+
+ggplot(test_data) +
+  geom_point(aes(x = SalePrice, y = pred1), color = "black", alpha = 0.5) +
+  geom_smooth(aes(x = SalePrice, y = pred1), method = lm, se = FALSE, color = "red") +
+  scale_x_continuous(labels = comma) + scale_y_continuous(labels = comma) +
+  xlab("Actual Sale Price") + ylab("Predicted Sale Price - Model 1") +
+  ggtitle("Actual vs. Predicted Sale Price for Model 1") + theme_minimal()
+
+ggplot(test_data) +
+  geom_point(aes(x = SalePrice, y = pred2), color = "black", alpha = 0.5) +
+  geom_smooth(aes(x = SalePrice, y = pred2), method = lm, se = FALSE, color = "red") +
+  scale_x_continuous(labels = comma) + scale_y_continuous(labels = comma) +
+  xlab("Actual Sale Price") + ylab("Predicted Sale Price - Model 2 (Stepwise)") +
+  ggtitle("Actual vs. Predicted Sale Price for Model 2") + theme_minimal()
+
+ggplot(test_data) +
+  geom_point(aes(x = SalePrice, y = pred3), color = "black", alpha = 0.5) +
+  geom_smooth(aes(x = SalePrice, y = pred3), method = lm, se = FALSE, color = "red") +
+  scale_x_continuous(labels = comma) + scale_y_continuous(labels = comma) +
+  xlab("Actual Sale Price") + ylab("Predicted Sale Price - Model 3 (Manual)") +
+  ggtitle("Actual vs. Predicted Sale Price for Model 3") + theme_minimal()
+
+
+```
+
+Q1 C
+```{r}
+cat("\nComparison of Models Based on Evaluation Metrics:\n")
+cat("\nModel 1 (All Variables):\n")
+cat("R-squared: ", metrics_model1['R_squared'], "\n")
+cat("RMSE: ", metrics_model1['RMSE'], "\n")
+
+cat("\nModel 2 (Stepwise Regression):\n")
+cat("R-squared: ", metrics_model2['R_squared'], "\n")
+cat("RMSE: ", metrics_model2['RMSE'], "\n")
+
+cat("\nModel 3 (Manual Selection):\n")
+cat("R-squared: ", metrics_model3['R_squared'], "\n")
+cat("RMSE: ", metrics_model3['RMSE'], "\n")
+
+cat("\nFormula for Model 1 (All Variables):\n")
+print(as.formula(paste("SalePrice ~", paste(names(coef(model1))[-1], collapse = " + "))))
+
+cat("\nFormula for Model 2 (Stepwise Regression):\n")
+print(as.formula(paste("SalePrice ~", paste(names(coef(model2))[-1], collapse = " + "))))
+
+cat("\nFormula for Model 3 (Manual Selection):\n")
+print(as.formula(paste("SalePrice ~ LivingArea + OverallQuality + YearBuilt + GarageCars")))
+
+```
+
+2. Decision Tree Modelling
+Q2 A
+```{r}
+library(rpart)
+library(rpart.plot)
+library(dplyr)
+
+housing_data <- read.csv("HousingValuation.csv", header = TRUE)
+
+head(housing_data)
+summary(housing_data)
+
+formula <- SalePrice ~ LivingArea + OverallQuality + YearBuilt + GarageCars
+
+set.seed(123)
+smp_size <- floor(0.7 * nrow(housing_data))
+train_ind <- sample(seq_len(nrow(housing_data)), size = smp_size)
+train_data <- housing_data[train_ind, ]
+test_data <- housing_data[-train_ind, ]
+
+base_tree <- rpart(formula, data = train_data, method = "anova")
+rpart.plot(base_tree, type = 3, fallen.leaves = TRUE, main = "Base Decision Tree")
+
+predicted_base <- predict(base_tree, test_data)
+rmse_base <- sqrt(mean((test_data$SalePrice - predicted_base)^2))
+print(paste("RMSE of Base Tree: ", round(rmse_base, 2)))
+
+```
+
+Q2 B
+```{r}
+printcp(base_tree)
+
+best_cp <- base_tree$cptable[which.min(base_tree$cptable[,"xerror"]), "CP"]
+pruned_tree <- prune(base_tree, cp = best_cp)
+rpart.plot(pruned_tree, type = 3, fallen.leaves = TRUE, main = "Pruned Decision Tree")
+
+predicted_pruned <- predict(pruned_tree, test_data)
+rmse_pruned <- sqrt(mean((test_data$SalePrice - predicted_pruned)^2))
+print(paste("RMSE of Pruned Tree: ", round(rmse_pruned, 2)))
+
+control_params <- rpart.control(minsplit = 30, maxdepth = 5)
+third_tree <- rpart(formula, data = train_data, method = "anova", control = control_params)
+rpart.plot(third_tree, type = 3, fallen.leaves = TRUE, main = "Third Decision Tree (Custom Parameters)")
+
+predicted_third <- predict(third_tree, test_data)
+rmse_third <- sqrt(mean((test_data$SalePrice - predicted_third)^2))
+print(paste("RMSE of Third Tree: ", round(rmse_third, 2)))
+
+cat("\nComparison of Decision Tree Models Based on RMSE:\n")
+cat("Base Tree RMSE: ", rmse_base, "\n")
+cat("Pruned Tree RMSE: ", rmse_pruned, "\n")
+cat("Third Tree (Custom Parameters) RMSE: ", rmse_third, "\n")
+
+cat("\nBase Decision Tree Structure:\n")
+print(base_tree)
+
+cat("\nPruned Decision Tree Structure:\n")
+print(pruned_tree)
+
+cat("\nThird Decision Tree (Custom Parameters) Structure:\n")
+print(third_tree)
+
+```
+
+Q2 C
+```{r}
+cat("\nComparison of Decision Tree Models Based on RMSE:\n")
+cat("Base Tree RMSE: ", rmse_base, "\n")
+cat("Pruned Tree RMSE: ", rmse_pruned, "\n")
+cat("Third Tree (Custom Parameters) RMSE: ", rmse_third, "\n")
+
+cat("\nDecision Tree Models Comparison:\n")
+cat("\nBase Decision Tree Structure:\n")
+print(base_tree)
+
+cat("\nPruned Decision Tree Structure:\n")
+print(pruned_tree)
+
+cat("\nThird Decision Tree (Custom Parameters) Structure:\n")
+print(third_tree)
+
+# Plotting all three decision trees for visual comparison
+rpart.plot(base_tree, type = 3, fallen.leaves = TRUE, main = "Base Decision Tree")
+rpart.plot(pruned_tree, type = 3, fallen.leaves = TRUE, main = "Pruned Decision Tree")
+rpart.plot(third_tree, type = 3, fallen.leaves = TRUE, main = "Third Decision Tree (Custom Parameters)")
+
+```
+
+
+
+
